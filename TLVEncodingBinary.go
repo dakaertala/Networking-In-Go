@@ -13,11 +13,11 @@ package main
 // Value: The actual data payload.
 
 // Why?
-// TLV allows different types of data to be serialized 
-// into a single stream while preserving their identity 
+// TLV allows different types of data to be serialized
+// into a single stream while preserving their identity
 // and boundaries.
 
-// TLV is ideal for evolving protocols or formats 
+// TLV is ideal for evolving protocols or formats
 // where future extensions are expected.
 
 import (
