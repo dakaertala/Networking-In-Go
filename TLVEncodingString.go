@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net"
+	"reflect"
 	"testing"
 )
 
@@ -120,4 +121,24 @@ func TestPayloads(t *testing.T) {
 			}
 		}
 	}()
+
+	conn, err := net.Dial("tcp", listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	for i := 0; i < len(payloads); i++ {
+		actual, err := decode(conn)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if expected := payloads[i]; !reflect.DeepEqual(expected, actual) {
+			t.Errorf("value mismatch: %v = %v", expected, actual)
+			continue
+		}
+
+		t.Logf("[%T] %[1]q", actual)
+	}
 }
