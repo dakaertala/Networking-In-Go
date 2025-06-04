@@ -136,6 +136,7 @@ func decode(r io.Reader) (Payload, error) {
 	return payload, nil
 }
 
+// Test of the TLC encoding
 func TestPayloads(t *testing.T) {
 	b1 := Binary("Clear is better than clever.")
 	b2 := Binary("Don't panic.")
