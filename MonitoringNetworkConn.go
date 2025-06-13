@@ -93,4 +93,17 @@ func ExampleMonitor() {
 			return
 		}
 	}()
+
+	conn, err := net.Dial("tcp", listener.Addr().String())
+	if err != nil {
+		monitor.Fatal(err)
+	}
+
+	_, err = conn.Write([]byte("Test\n"))
+	if err != nil {
+		monitor.Fatal()
+	}
+
+	_ = conn.Close()
+	<-done
 }
