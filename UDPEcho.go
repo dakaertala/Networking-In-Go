@@ -128,4 +128,40 @@ func TestListenPacketUDP(t *testing.T) {
 	if l := len(interrupt); l != n {
 		t.Fatalf("wrote %d bytes of %d", n, l)
 	}
+
+	ping := []byte("ping")
+	_, err = client.WriteTo(ping, serverAddr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	buf := make([]byte, 1024)
+	n, addr, err := client.ReadFrom(buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(interrupt, buf[:n]) {
+		t.Errorf("expected reply %q; actual reply %q", interrupt, buf[:n])
+	}
+
+	if addr.String() != interloper.LocalAddr().String() {
+		t.Errorf("expected message from %q; actual sender %q", interloper.LocalAddr(), addr)
+	}
+
+	n, addr, err = client.ReadFrom(buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(ping, buf[:n]) {
+		t.Errorf("expected reply %q; actual reply %q", ping, buf[:n])
+	}
+
+	if addr.String() != serverAddr.String() {
+		t.Errorf("expected message from %q; actual sender is %q",
+			serverAddr, addr)
+	}
 }
+
+
