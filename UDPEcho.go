@@ -191,7 +191,7 @@ func TestListenPacketUDP(t *testing.T) {
 		t.Errorf("expected message from %q; actual sender %q", interloper.LocalAddr(), addr)
 	}
 
-	// Second read: Expecting the echoed "ping" message from the server.
+	// Second read:  Expecting the echoed "ping" message from the server.
 	n, addr, err = client.ReadFrom(buf)
 	if err != nil {
 		t.Fatal(err)
