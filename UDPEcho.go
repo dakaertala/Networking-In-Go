@@ -211,58 +211,70 @@ func TestListenPacketUDP(t *testing.T) {
 }
 
 func TestDialUDP(t *testing.T) {
+	// Create a cancellable context for controlling the server's lifetime
 	ctx, cancel := context.WithCancel(context.Background())
+
+	// Start the UDP echo server on 127.0.0.1 with an ephemeral port (":0")
 	serverAddr, err := echoServerUDP(ctx, "127.0.0.1")
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal(err) // Fail the test if the server fails to start
 	}
-	defer cancel()
+	defer cancel() // Ensure the server is stopped when the test ends
 
+	// Create a UDP "client" connection that will communicate with the echo server
 	client, err := net.Dial("udp", serverAddr.String())
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal(err) // Fail if unable to connect to server
 	}
-	defer func() { _ = client.Close() }()
+	defer func() { _ = client.Close() }() // Ensure client connection is closed at the end
 
+	// Create a separate UDP listener (interloper) to send a spoofed packet to the client
 	interloper, err := net.ListenPacket("udp", "127.0.0.1")
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal(err) // Fail if we can't create the interloper socket
 	}
 
+	// Send a fake, unsolicited UDP packet to the client (not part of the ping/echo exchange)
 	interrupt := []byte("pardon me")
 	n, err := interloper.WriteTo(interrupt, client.LocalAddr())
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal(err) // Fail if writing the spoofed packet fails
 	}
-	_ = interloper.Close()
+	_ = interloper.Close() // Interloper's job is done; close it
 
+	// Sanity check: ensure the number of bytes written matches the input slice
 	if l := len(interrupt); l != n {
 		t.Fatalf("wrote %d bytes of %d", n, l)
 	}
 
+	// Now send a proper echo request ("ping") to the server
 	ping := []byte("ping")
-	_, err := client.Write(ping)
+	_, err = client.Write(ping)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal(err) // Fail if sending the ping fails
 	}
 
+	// Allocate buffer to read the response
 	buf := make([]byte, 1024)
 	n, err = client.Read(buf)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal(err) // Fail if reading the echo reply fails
 	}
 
+	// Verify the echo reply matches the original "ping" request
 	if !bytes.Equal(ping, buf[:n]) {
 		t.Errorf("expected reply %q; actual reply %q", ping, buf[:n])
 	}
 
+	// Set a 1-second read deadline to test if any additional unexpected packet shows up
 	err = client.SetDeadline(time.Now().Add(time.Second))
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	// Try to read again — expect a timeout or error since there should be no more packets
 	_, err = client.Read(buf)
 	if err == nil {
-		t.Fatal("unexpected packet")
+		t.Fatal("unexpected packet") // Fail if something is unexpectedly received
 	}
 }
