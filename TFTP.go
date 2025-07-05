@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
+	"strings"
 )
 
 const (
@@ -76,4 +78,41 @@ func (q ReadReq) MarshalBinary() ([]byte, error) {
 	}
 
 	return b.Bytes(), nil
+}
+
+func (q *ReadReq) UnmarshalBinary(p []byte) error {
+	r := bytes.NewBuffer(p)
+
+	var code OpCode
+
+	err := binary.Read(r, binary.BigEndian, &code)
+	if err != nil {
+		return err
+	}
+
+	if code != OpRRQ {
+		return errors.New("invalid RRQ")
+	}
+
+	q.Filename, err = r.ReadString(0)
+	if err != nil {
+		return errors.New("invalid RRQ")
+	}
+
+	q.Filename = strings.TrimRight(q.Filename, "\x00")
+	if len(q.Filename) == 0 {
+		return errors.New("invalid RRQ")
+	}
+
+	q.Mode, err = r.ReadString(0)
+	if err != nil {
+		return errors.New("invalid RRQ")
+	}
+
+	actual := strings.ToLower(q.Mode)
+	if actual != "octet" {
+		return errors.New("only binary transfers supported")
+	}
+
+	return nil
 }
