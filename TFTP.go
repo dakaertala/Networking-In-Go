@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"io"
 	"strings"
 )
 
@@ -124,4 +125,33 @@ func (q *ReadReq) UnmarshalBinary(p []byte) error {
 	}
 
 	return nil
+}
+
+type Data struct {
+	Block   uint16
+	Payload io.Reader
+}
+
+func (d *Data) MarshalBinary() ([]byte, error) {
+	b := new(bytes.Buffer)
+	b.Grow(DatagramSize)
+
+	d.Block++
+
+	err := binary.Write(b, binary.BigEndian, OpData)
+	if err != nil {
+		return nil, err
+	}
+
+	err = binary.Write(b, binary.BigEndian, d.Block)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = io.CopyN(b, d.Payload, BlockSize)
+	if err != nil && err != io.EOF {
+		return nil, err
+	}
+
+	return b.Bytes(), nil
 }
