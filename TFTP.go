@@ -155,3 +155,25 @@ func (d *Data) MarshalBinary() ([]byte, error) {
 
 	return b.Bytes(), nil
 }
+
+func (d *Data) UnmarshalBinary(p []byte) error {
+	if l := len(p); l < 4 || l > DatagramSize {
+		return errors.New("invalid Data")
+	}
+
+	var opcode
+
+	err := binary.Read(bytes.NewReader(p[:2]), binary.BigEndian, &opcode)
+	if err != nil || opcode != OpData {
+		return errors.New("invalid DATA")
+	}
+
+	err = binary.Read(bytes.NewReader(p[2:4]), binary.BigEndian, &d.Block)
+	if err != nil {
+		return errors.New("invalid DATA")
+	}
+
+	d.Payload = bytes.NewBuffer(p[4:])
+
+	return nil
+}
