@@ -128,52 +128,66 @@ func (q *ReadReq) UnmarshalBinary(p []byte) error {
 }
 
 type Data struct {
-	Block   uint16
-	Payload io.Reader
+	Block   uint16    // Block number of this data packet (starts from 1)
+	Payload io.Reader // Reader that supplies the data payload (up to 512 bytes)
 }
 
+// MarshalBinary converts the Data struct into a TFTP DATA packet binary format.
+// The layout is: [2 bytes opcode][2 bytes block number][<=512 bytes payload]
 func (d *Data) MarshalBinary() ([]byte, error) {
+	// Create a buffer and preallocate capacity to avoid resizing
 	b := new(bytes.Buffer)
-	b.Grow(DatagramSize)
+	b.Grow(DatagramSize) // 2 + 2 + 512 = 516 max size
 
+	// Increment the block number for this DATA packet
 	d.Block++
 
-	err := binary.Write(b, binary.BigEndian, OpData)
-	if err != nil {
+	// Write the 2-byte DATA opcode (value = 3) in big-endian order
+	if err := binary.Write(b, binary.BigEndian, OpData); err != nil {
 		return nil, err
 	}
 
-	err = binary.Write(b, binary.BigEndian, d.Block)
-	if err != nil {
+	// Write the 2-byte block number
+	if err := binary.Write(b, binary.BigEndian, d.Block); err != nil {
 		return nil, err
 	}
 
-	_, err = io.CopyN(b, d.Payload, BlockSize)
-	if err != nil && err != io.EOF {
+	// Copy up to 512 bytes from the payload into the buffer
+	// io.CopyN will return io.EOF if less than 512 bytes are copied — which is OK (last block)
+	if _, err := io.CopyN(b, d.Payload, BlockSize); err != nil && err != io.EOF {
 		return nil, err
 	}
 
+	// Return the constructed byte slice
 	return b.Bytes(), nil
 }
 
+// UnmarshalBinary parses a DATA packet from a byte slice.
+// It extracts the block number and wraps the payload in a bytes.Reader.
 func (d *Data) UnmarshalBinary(p []byte) error {
+	// A valid DATA packet must be at least 4 bytes (opcode + block number)
+	// and at most 516 bytes (full TFTP datagram)
 	if l := len(p); l < 4 || l > DatagramSize {
 		return errors.New("invalid Data")
 	}
 
-	var opcode
+	var opcode OpCode
 
-	err := binary.Read(bytes.NewReader(p[:2]), binary.BigEndian, &opcode)
-	if err != nil || opcode != OpData {
+	// Read the first 2 bytes to determine the opcode
+	if err := binary.Read(bytes.NewReader(p[:2]), binary.BigEndian, &opcode); err != nil || opcode != OpData {
 		return errors.New("invalid DATA")
 	}
 
-	err = binary.Read(bytes.NewReader(p[2:4]), binary.BigEndian, &d.Block)
-	if err != nil {
+	// Read the next 2 bytes for the block number
+	if err := binary.Read(bytes.NewReader(p[2:4]), binary.BigEndian, &d.Block); err != nil {
 		return errors.New("invalid DATA")
 	}
 
+	// Treat the remaining bytes as the data payload
+	// We use a bytes.Buffer to implement io.Reader for the Payload field
 	d.Payload = bytes.NewBuffer(p[4:])
 
 	return nil
 }
+
+type Ack uint16
