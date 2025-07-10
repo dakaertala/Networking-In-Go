@@ -191,3 +191,15 @@ func (d *Data) UnmarshalBinary(p []byte) error {
 }
 
 type Ack uint16
+
+func (a Ack) MarshaBinary() ([]byte, error) {
+	cap := 2 + 2
+
+	b := new(bytes.Buffer)
+	b.Grow(cap)
+
+	err := binary.Write(b, binary.BigEndian, OpAck)
+	if err != nil {
+		return nil, err
+	}
+}
